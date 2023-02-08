@@ -1,0 +1,23 @@
+#: kivy 1.0.9
+
+<SimulationBall>:
+    canvas:
+        Ellipse:
+            pos: self.pos
+            size: self.radius*2, self.radius*2
+
+<SimulationBlock>:
+    canvas:
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<SimulationWindow>:
+    debug_ball: ball
+    debug_block: block
+
+    SimulationBall:
+        id: ball
+    
+    SimulationBlock:
+        id: block
