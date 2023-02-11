@@ -56,7 +56,9 @@ class SimulationBall(Widget):
 
         # Calculate scaler along velocities until balls centers overlap
 
-        t = (p1-p2)/(v2-v1)
+        print((p1-p2).length()/(v2-v1).length())
+        
+        t = (p1-p2).length()/(v2-v1).length()
 
         if t < 0 or t > 1:
             return
@@ -72,8 +74,8 @@ class SimulationBall(Widget):
         v_vec = v1-v2
 
         a = p_vec.x
-        b = p_vec.y
-        c = v_vec.x
+        b = v_vec.x
+        c = p_vec.y
         d = v_vec.y
 
         a2 = a**2
@@ -84,7 +86,7 @@ class SimulationBall(Widget):
         ab = a*b
         cd = c*d
 
-        r2 = self.radius + ball.radius
+        r2 = (self.radius + ball.radius)**2
 
         xn = t
 
@@ -93,11 +95,18 @@ class SimulationBall(Widget):
             fxn = (b2+d2)*xn**2 + 2*(ab+cd)*xn + r2-a2-c2
             fdashxn = 2*(b2+d2)*xn + 2*(ab+cd)
 
+            print(p1, p2, p_vec, v1, v2, v_vec, a2, b2, c2, d2, ab, cd, r2, xn, fxn, fdashxn, 2*(b2+d2)*xn, 2*(ab+cd))
+
             xn -= fxn/fdashxn
 
         # xn should now be an approximation to the required value
 
-        # CONTINUE HERE
+        self.vel.x *= xn
+        self.vel.y *= xn
+        ball.vel.x *= xn
+        ball.vel.y *= xn
+
+        # SOMEHOW fdashxn IS TURNING OUT ZERO, FIX
 
 
     def block_collision_check(self, block, delta):
@@ -210,10 +219,6 @@ class SimulationManager(Widget):
         for ball in self.balls:
 
             ball.update_after_collision(delta)
-
-        # DEBUG LINE - TESTING BALL COLLISION
-
-        #self.balls[1].vel[1] -= SimulationBall.GRAVITY * delta
 
 # Applications
 
