@@ -4,7 +4,7 @@ from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.vector import Vector
 from kivy.properties import NumericProperty, \
-    ReferenceListProperty, ObjectProperty, ListProperty
+    ReferenceListProperty, ListProperty
 from kivy.clock import Clock
 
 # Other Imports
@@ -19,6 +19,7 @@ class SimulationBall(Widget):
     # Class Constants
 
     GRAVITY = -500
+    COLLISION_PRECISION = 5
 
     # Properties
 
@@ -33,32 +34,80 @@ class SimulationBall(Widget):
 
     # Methods
 
-    def collision_check(self, other):
+    def collision_check(self, other, delta):
 
         if isinstance(other, SimulationBall):
 
-            self.ball_collision_check(other)
+            self.ball_collision_check(other, delta)
 
         elif isinstance(other, SimulationBlock):
 
-            self.block_collision_check(other)
+            self.block_collision_check(other, delta)
     
-    def ball_collision_check(self, ball):
+    def ball_collision_check(self, ball, delta):
 
         # Manual method because self.collide_widget(ball) appeared to not work
-        if (Vector(self.pos) - Vector(ball.pos)).length() <  \
-            self.radius + ball.radius:
+        # And it makes the actual collisions easier
 
-            print(f"{self} and {ball} have collided!")
+        p1 = Vector(self.pos)
+        p2 = Vector(ball.pos)
+        v1 = Vector(self.vel) * delta
+        v2 = Vector(ball.vel) * delta
 
-    def block_collision_check(self, block):
+        # Calculate scaler along velocities until balls centers overlap
+
+        t = (p1-p2)/(v2-v1)
+
+        if t < 0 or t > 1:
+            return
+
+        ''' Finding the t value that makes the balls just touch:
+         This has an algebraical approach leading to a quadratic
+         in t with horrible coefficients. This would be awkward 
+         and prone to floating point error. Thus, the quadratic
+         solution required (range (0,t)) is approximated using
+         the Newton-Raphson method, starting with t as x0'''
+
+        p_vec = p1-p2
+        v_vec = v1-v2
+
+        a = p_vec.x
+        b = p_vec.y
+        c = v_vec.x
+        d = v_vec.y
+
+        a2 = a**2
+        b2 = b**2
+        c2 = c**2
+        d2 = d**2
+
+        ab = a*b
+        cd = c*d
+
+        r2 = self.radius + ball.radius
+
+        xn = t
+
+        for iteration in range(SimulationBall.COLLISION_PRECISION):
+
+            fxn = (b2+d2)*xn**2 + 2*(ab+cd)*xn + r2-a2-c2
+            fdashxn = 2*(b2+d2)*xn + 2*(ab+cd)
+
+            xn -= fxn/fdashxn
+
+        # xn should now be an approximation to the required value
+
+        # CONTINUE HERE
+
+
+    def block_collision_check(self, block, delta):
 
         # Manual method because self.collide_widget(ball) appeared to not work
 
-        centers_vec = Vector(self.pos) - Vector(block.pos)
+        centers_vec = Vector(self.pos) + Vector(self.vel) * delta - Vector(block.pos)
 
         if centers_vec.length() < self.radius + \
-           block.calculate_radius(centers_vec.angle((1,0))):
+            block.calculate_radius(centers_vec.angle((1,0))):
 
             print(f"{self} and {block} have collided!")
 
@@ -127,7 +176,8 @@ class SimulationManager(Widget):
 
             for ball in balls:
 
-                ball[0].pos = ball[1:]
+                ball[0].pos = ball[1:3]
+                ball[0].vel = ball[3:]
                 self.add_widget(ball[0])
                 self.balls.append(ball[0])
         
@@ -152,9 +202,10 @@ class SimulationManager(Widget):
             for obj in self.balls + self.blocks:
 
                 # Working around ListProperty's shallow copies
+
                 if id(obj) != id(ball):
 
-                    ball.collision_check(obj)
+                    ball.collision_check(obj, delta)
         
         for ball in self.balls:
 
@@ -172,10 +223,10 @@ class SimulationApp(App):
 
         window = SimulationManager()
 
-        window.initialise(balls=((SimulationBall(), 500, 500),  \
-            (SimulationBall(), 700, 200)),  \
-            blocks=((SimulationBlock(), 500, 200),  \
-            (SimulationBlock(), 300, 200)))
+        window.initialise(balls=((SimulationBall(), 400, 300, 100, 500),  \
+            (SimulationBall(), 700, 300, -100, 500)),  \
+            blocks=((SimulationBlock(), 500, 200), \
+            (SimulationBlock(), 500, 100)))
 
         Clock.schedule_interval(window.update, 1/60)
 
