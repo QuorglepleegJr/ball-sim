@@ -54,59 +54,101 @@ class SimulationBall(Widget):
         v1 = Vector(self.vel) * delta
         v2 = Vector(ball.vel) * delta
 
-        # Calculate scaler along velocities until balls centers overlap
+        if (v2-v1).length() != 0:
 
-        print((p1-p2).length()/(v2-v1).length())
+            t = ((p1-p2).length()-self.radius-ball.radius)/(v2-v1).length()
+
+            if t >= 0 and t < 1:
+
+                v1_component_parallel = v1.length() * cos(v1.angle(p2-p1))
+                v1_component_perp = Vector(self.vel).length() * sin(v1.angle(p2-p1))
+                v2_component_parallel = v2.length() * cos(v2.angle(p2-p1))
+                v2_component_perp = Vector(ball.vel).length() * sin(v2.angle(p2-p1))
+
+                v1_component_parallel = \
+                    Vector(v1_component_parallel, 0).rotate(v1.angle(p2-p1))
+                v2_component_parallel = \
+                    Vector(v2_component_parallel, 0).rotate(v2.angle(p2-p1))
+
+
+                v1_component_perp = \
+                    Vector(v1_component_perp, 0).rotate(v1.angle(p2-p1))
+                v2_component_perp = \
+                    Vector(v2_component_perp, 0).rotate(v2.angle(p2-p1))
+
+                print(v1, v2, v1_component_parallel, v1_component_perp, v2_component_parallel, v2_component_perp, t)
+
+                self.pos[0] += v1_component_parallel[0] * t
+                self.pos[1] += v1_component_parallel[1] * t
+                ball.pos[0] += v2_component_parallel[0] * t
+                ball.pos[0] += v2_component_parallel[1] * t
+
+                self.vel = v1_component_perp
+                ball.vel = v2_component_perp
+
+                #self.vel[0] *= t
+                #self.vel[1] *= t
+                #ball.vel[0] *= t
+                #ball.vel[1] *= t
+
+
+        ## Calculate scaler along velocities until balls centers overlap
+
+        #print((p1-p2).length()/(v2-v1).length())
         
-        t = (p1-p2).length()/(v2-v1).length()
+        #t = (p1-p2).length()/(v2-v1).length()
 
-        if t < 0 or t > 1:
-            return
+        #if t < 0 or t > 1:
+        #    return
 
-        ''' Finding the t value that makes the balls just touch:
-         This has an algebraical approach leading to a quadratic
-         in t with horrible coefficients. This would be awkward 
-         and prone to floating point error. Thus, the quadratic
-         solution required (range (0,t)) is approximated using
-         the Newton-Raphson method, starting with t as x0'''
+        #''' Finding the t value that makes the balls just touch:
+        # This has an algebraical approach leading to a quadratic
+        # in t with horrible coefficients. This would be awkward 
+        # and prone to floating point error. Thus, the quadratic
+        # solution required (range (0,t)) is approximated using
+        # the Newton-Raphson method, starting with t-0.01 as x0'''
 
-        p_vec = p1-p2
-        v_vec = v1-v2
+        #p_vec = p1-p2
+        #v_vec = v1-v2
 
-        a = p_vec.x
-        b = v_vec.x
-        c = p_vec.y
-        d = v_vec.y
+        #a = p_vec.x
+        #b = v_vec.x
+        #c = p_vec.y
+        #d = v_vec.y
 
-        a2 = a**2
-        b2 = b**2
-        c2 = c**2
-        d2 = d**2
+        #a2 = a**2
+        #b2 = b**2
+        #c2 = c**2
+        #d2 = d**2
 
-        ab = a*b
-        cd = c*d
+        #ab = a*b
+        #cd = c*d
 
-        r2 = (self.radius + ball.radius)**2
+        #r2 = (self.radius + ball.radius)**2
 
-        xn = t
+        #xn = t-0.01
 
-        for iteration in range(SimulationBall.COLLISION_PRECISION):
+        #for iteration in range(SimulationBall.COLLISION_PRECISION):
 
-            fxn = (b2+d2)*xn**2 + 2*(ab+cd)*xn + r2-a2-c2
-            fdashxn = 2*(b2+d2)*xn + 2*(ab+cd)
+        #    fxn = (b2+d2)*xn**2 + 2*(ab+cd)*xn + r2-a2-c2
+        #    fdashxn = 2*(b2+d2)*xn + 2*(ab+cd)
 
-            print(p1, p2, p_vec, v1, v2, v_vec, a2, b2, c2, d2, ab, cd, r2, xn, fxn, fdashxn, 2*(b2+d2)*xn, 2*(ab+cd))
+        #    print(p1, p2, p_vec, v1, v2, v_vec, a2, b2, c2, d2, ab, cd, r2, xn, fxn, fdashxn, 2*(b2+d2)*xn, 2*(ab+cd))
 
-            xn -= fxn/fdashxn
+        #    xn -= fxn/fdashxn
 
-        # xn should now be an approximation to the required value
+        ## xn should now be an approximation to the required value
 
-        self.vel.x *= xn
-        self.vel.y *= xn
-        ball.vel.x *= xn
-        ball.vel.y *= xn
+        #if xn < 0 or xn > 1:
 
-        # SOMEHOW fdashxn IS TURNING OUT ZERO, FIX
+        #    raise Exception(f"Xn cannot be {xn}")
+
+        #self.vel[0] *= xn
+        #self.vel[1] *= xn
+        #ball.vel[0] *= xn
+        #ball.vel[1] *= xn
+
+        #print("SCALING VELOCITIES BY", xn)
 
 
     def block_collision_check(self, block, delta):
@@ -206,7 +248,7 @@ class SimulationManager(Widget):
 
             ball.update_before_collision(delta)
 
-        for ball in self.balls:
+        '''for ball in self.balls:
             
             for obj in self.balls + self.blocks:
 
@@ -214,7 +256,19 @@ class SimulationManager(Widget):
 
                 if id(obj) != id(ball):
 
-                    ball.collision_check(obj, delta)
+                    ball.collision_check(obj, delta)'''
+        
+        ball_pairs = [{a, b} for a in self.balls for b in self.balls]
+
+        while len(ball_pairs) > 0:
+
+            balls = ball_pairs.pop()
+
+            if balls not in ball_pairs:
+            
+                balls = list(balls)
+                if len(balls) == 2:
+                    balls[0].collision_check(balls[1], delta)
         
         for ball in self.balls:
 
