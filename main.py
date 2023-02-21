@@ -3,8 +3,8 @@
 from kivy.app import App
 from kivy.uix.widget import Widget
 from kivy.vector import Vector
-from kivy.properties import NumericProperty, \
-    ReferenceListProperty, ListProperty
+from kivy.properties import NumericProperty, ObjectProperty, \
+    ReferenceListProperty, ListProperty, BooleanProperty
 from kivy.clock import Clock
 
 # Other Imports
@@ -18,7 +18,7 @@ class SimulationBall(Widget):
 
     # Class Constants
 
-    GRAVITY = -500
+    GRAVITY = 0 #-500 - DEBUG REMOVAL
     COLLISION_PRECISION = 5
 
     # Properties
@@ -60,31 +60,46 @@ class SimulationBall(Widget):
 
             if t >= 0 and t < 1:
 
-                v1_component_parallel = v1.length() * cos(v1.angle(p2-p1))
-                v1_component_perp = Vector(self.vel).length() * sin(v1.angle(p2-p1))
-                v2_component_parallel = v2.length() * cos(v2.angle(p2-p1))
-                v2_component_perp = Vector(ball.vel).length() * sin(v2.angle(p2-p1))
+                # print(self.vel, ball.vel, v1, v2, delta, t)
 
-                v1_component_parallel = \
-                    Vector(v1_component_parallel, 0).rotate(v1.angle(p2-p1))
-                v2_component_parallel = \
-                    Vector(v2_component_parallel, 0).rotate(v2.angle(p2-p1))
+                # self.pos[0] += v1[0] * t
+                # self.pos[1] += v1[1] * t
+                # ball.pos[0] += v2[0] * t
+                # ball.pos[1] += v2[1] * t
 
+                # self.vel = Vector(0,0)
+                # ball.vel = Vector(0,0)
 
-                v1_component_perp = \
-                    Vector(v1_component_perp, 0).rotate(v1.angle(p2-p1))
-                v2_component_perp = \
-                    Vector(v2_component_perp, 0).rotate(v2.angle(p2-p1))
+                # print((Vector(self.pos) - Vector(ball.pos)).length())
+                # print(self.pos, ball.pos)
 
-                print(v1, v2, v1_component_parallel, v1_component_perp, v2_component_parallel, v2_component_perp, t)
+                # Finding the vectors of the velocities component to positions
+                # At the instant of bouncing to ensure the right bit is scaled
+
+                v = (p2 + v2 * t) - (p1 + v1 * t)
+
+                # Parallel components scaled by delta
+
+                v1_component_parallel = v * (v1.dot(v)/v.dot(v))
+                v2_component_parallel = v * (v2.dot(v)/v.dot(v))
+                
+                # Perpendicular components unscaled
+
+                self_vel_parallel = v * (Vector(self.vel).dot(v)/v.dot(v))
+                ball_vel_parallel = v * (Vector(ball.vel).dot(v)/v.dot(v))
+
+                self_vel_perp = Vector(self.vel) - self_vel_parallel
+                ball_vel_perp = Vector(ball.vel) - ball_vel_parallel
+
+                print(v1, v2, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t)
 
                 self.pos[0] += v1_component_parallel[0] * t
                 self.pos[1] += v1_component_parallel[1] * t
                 ball.pos[0] += v2_component_parallel[0] * t
-                ball.pos[0] += v2_component_parallel[1] * t
+                ball.pos[1] += v2_component_parallel[1] * t
 
-                self.vel = v1_component_perp
-                ball.vel = v2_component_perp
+                self.vel = self_vel_perp
+                ball.vel = ball_vel_perp
 
                 #self.vel[0] *= t
                 #self.vel[1] *= t
@@ -218,6 +233,7 @@ class SimulationManager(Widget):
 
     balls = ListProperty()
     blocks = ListProperty()
+    initialised = BooleanProperty(False)
 
     # Methods
 
@@ -239,8 +255,14 @@ class SimulationManager(Widget):
                 block[0].pos = block[1:]
                 self.add_widget(block[0])
                 self.blocks.append(block[0])
+        
+        self.initialised = True
 
     def update(self, delta):
+
+        # Only update when initialised
+
+        if not self.initialised: return
 
         # Three stage update - handle gravity, collisions, then finally move
 
@@ -278,20 +300,48 @@ class SimulationManager(Widget):
 
 class SimulationApp(App):
 
+    window = ObjectProperty(SimulationManager())
+
     def build(self):
 
-        window = SimulationManager()
+        Clock.schedule_interval(self.window.update, 1/60)
 
-        window.initialise(balls=((SimulationBall(), 400, 300, 100, 500),  \
-            (SimulationBall(), 700, 300, -100, 500)),  \
-            blocks=((SimulationBlock(), 500, 200), \
-            (SimulationBlock(), 500, 100)))
-
-        Clock.schedule_interval(window.update, 1/60)
-
-        return window
+        return self.window
 
 # Main
 
 if __name__ == "__main__":
-    exit(SimulationApp().run())
+
+    with open("unit_tests.txt", "r") as tests:
+
+        lines = tests.readlines()
+
+        current_test = ""
+        test_no = ""
+
+        while True:
+
+            line = lines.pop(0)
+
+            if line[0] == "%":
+                
+                if current_test != "":
+
+                    print(f"TEST NUMBER {test_no}")
+
+                    sim = SimulationApp()
+
+                    exec(current_test)
+
+                    sim.run()
+
+                    current_test = ""
+
+                if line.strip()[1:] == "END": break
+
+                test_no = line.strip()[1:]
+            
+            else:
+
+                current_test += line
+    
