@@ -280,7 +280,10 @@ class SimulationApp(App):
 
         if hasattr(self, "balls") and hasattr(self, "blocks"):
 
-            self.window.initialise(self.balls, self.blocks)
+            init_balls = [(SimulationBall(), *b) for b in self.balls]
+            init_blocks = [(SimulationBlock(), *b) for b in self.blocks]
+
+            self.window.initialise(balls=init_balls, blocks=init_blocks)
 
         Clock.schedule_interval(self.window.update, 1/60)
 
@@ -302,10 +305,10 @@ if __name__ == "__main__":
     sim = SimulationApp()
 
     sim.initialise(
-        balls=((SimulationBall(), 400, 300, 100, 0),  \
-        (SimulationBall(), 700, 290, -100, 0)),  \
-        blocks=((SimulationBlock(), 500, 200), \
-        (SimulationBlock(), 500, 100)))
+        balls=((400, 300, 100, 0),  \
+        (700, 290, -100, 0)),  \
+        blocks=((500, 200), \
+        (500, 100)))
     
     sim.run()
     
