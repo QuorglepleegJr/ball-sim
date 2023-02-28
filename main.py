@@ -6,6 +6,7 @@ from kivy.vector import Vector
 from kivy.properties import NumericProperty, ObjectProperty, \
     ReferenceListProperty, ListProperty, BooleanProperty
 from kivy.clock import Clock
+from kivy.lang import Builder
 
 # Other Imports
 
@@ -239,6 +240,8 @@ class SimulationManager(Widget):
 
     def initialise(self, balls=None, blocks=None):
 
+        print(balls, blocks)
+
         if balls is not None:
 
             for ball in balls:
@@ -300,48 +303,72 @@ class SimulationManager(Widget):
 
 class SimulationApp(App):
 
-    window = ObjectProperty(SimulationManager())
-
     def build(self):
+
+        Builder.load_file("simulation.kv")
+
+        self.window = SimulationManager()
+
+        if hasattr(self, "balls") and hasattr(self, "blocks"):
+
+            self.window.initialise(self.balls, self.blocks)
+            delattr(self, "balls")
+            delattr(self, "blocks")
 
         Clock.schedule_interval(self.window.update, 1/60)
 
         return self.window
 
+    def initialise(self, balls=None, blocks=None):
+        
+        self.balls = balls
+        self.blocks = blocks
+
+
 # Main
 
 if __name__ == "__main__":
 
-    with open("unit_tests.txt", "r") as tests:
+    # with open("unit_tests.txt", "r") as tests:
 
-        lines = tests.readlines()
+    #     lines = tests.readlines()
 
-        current_test = ""
-        test_no = ""
+    #     current_test = ""
+    #     test_no = ""
 
-        while True:
+    #     while True:
 
-            line = lines.pop(0)
+    #         line = lines.pop(0)
 
-            if line[0] == "%":
+    #         if line[0] == "%":
                 
-                if current_test != "":
+    #             if current_test != "":
 
-                    print(f"TEST NUMBER {test_no}")
+    #                 print(f"TEST NUMBER {test_no}")
 
-                    sim = SimulationApp()
+    #                 sim = SimulationApp()
 
-                    exec(current_test)
+    #                 exec(current_test)
 
-                    sim.run()
+    #                 sim.run()
 
-                    current_test = ""
+    #                 current_test = ""
 
-                if line.strip()[1:] == "END": break
+    #             if line.strip()[1:] == "END": break
 
-                test_no = line.strip()[1:]
+    #             test_no = line.strip()[1:]
             
-            else:
+    #         else:
 
-                current_test += line
+    #             current_test += line
+
+    sim = SimulationApp()
+
+    sim.initialise(
+        balls=((SimulationBall(), 400, 300, 100, 0),  \
+        (SimulationBall(), 700, 290, -100, 0)),  \
+        blocks=((SimulationBlock(), 500, 200), \
+        (SimulationBlock(), 500, 100)))
+    
+    sim.run()
     
