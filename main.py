@@ -17,10 +17,14 @@ from math import sin, cos
 
 class SimulationBall(Widget):
 
+    '''
+    Modelled as a smooth circle, this class represents an object
+    to be simulated under gravity and physics.
+    '''
+
     # Class Constants
 
-    GRAVITY = 0 #-500 - DEBUG REMOVAL
-    COLLISION_PRECISION = 5
+    GRAVITY = 0 #-500 - Debug removal for the time being
 
     # Properties
 
@@ -37,6 +41,11 @@ class SimulationBall(Widget):
 
     def collision_check(self, other, delta):
 
+        '''
+        Acts as a factory function of sorts, calling the relevant
+        collision handle method for all relevant objects.
+        '''
+
         if isinstance(other, SimulationBall):
 
             self.ball_collision_check(other, delta)
@@ -46,6 +55,10 @@ class SimulationBall(Widget):
             self.block_collision_check(other, delta)
     
     def ball_collision_check(self, ball, delta):
+
+        '''
+        Handles the collision between two balls.
+        '''
 
         # Manual method because self.collide_widget(ball) appeared to not work
         # And it makes the actual collisions easier
@@ -60,19 +73,6 @@ class SimulationBall(Widget):
             t = ((p1-p2).length()-self.radius-ball.radius)/(v2-v1).length()
 
             if t >= 0 and t < 1:
-
-                # print(self.vel, ball.vel, v1, v2, delta, t)
-
-                # self.pos[0] += v1[0] * t
-                # self.pos[1] += v1[1] * t
-                # ball.pos[0] += v2[0] * t
-                # ball.pos[1] += v2[1] * t
-
-                # self.vel = Vector(0,0)
-                # ball.vel = Vector(0,0)
-
-                # print((Vector(self.pos) - Vector(ball.pos)).length())
-                # print(self.pos, ball.pos)
 
                 # Finding the vectors of the velocities component to positions
                 # At the instant of bouncing to ensure the right bit is scaled
@@ -92,82 +92,25 @@ class SimulationBall(Widget):
                 self_vel_perp = Vector(self.vel) - self_vel_parallel
                 ball_vel_perp = Vector(ball.vel) - ball_vel_parallel
 
-                print(v1, v2, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t)
+                print(v1, v2, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t) # Debug
+
+                # Move to position to touch
 
                 self.pos[0] += v1_component_parallel[0] * t
                 self.pos[1] += v1_component_parallel[1] * t
                 ball.pos[0] += v2_component_parallel[0] * t
                 ball.pos[1] += v2_component_parallel[1] * t
 
+                # Remove parallel components
+
                 self.vel = self_vel_perp
                 ball.vel = ball_vel_perp
 
-                #self.vel[0] *= t
-                #self.vel[1] *= t
-                #ball.vel[0] *= t
-                #ball.vel[1] *= t
-
-
-        ## Calculate scaler along velocities until balls centers overlap
-
-        #print((p1-p2).length()/(v2-v1).length())
-        
-        #t = (p1-p2).length()/(v2-v1).length()
-
-        #if t < 0 or t > 1:
-        #    return
-
-        #''' Finding the t value that makes the balls just touch:
-        # This has an algebraical approach leading to a quadratic
-        # in t with horrible coefficients. This would be awkward 
-        # and prone to floating point error. Thus, the quadratic
-        # solution required (range (0,t)) is approximated using
-        # the Newton-Raphson method, starting with t-0.01 as x0'''
-
-        #p_vec = p1-p2
-        #v_vec = v1-v2
-
-        #a = p_vec.x
-        #b = v_vec.x
-        #c = p_vec.y
-        #d = v_vec.y
-
-        #a2 = a**2
-        #b2 = b**2
-        #c2 = c**2
-        #d2 = d**2
-
-        #ab = a*b
-        #cd = c*d
-
-        #r2 = (self.radius + ball.radius)**2
-
-        #xn = t-0.01
-
-        #for iteration in range(SimulationBall.COLLISION_PRECISION):
-
-        #    fxn = (b2+d2)*xn**2 + 2*(ab+cd)*xn + r2-a2-c2
-        #    fdashxn = 2*(b2+d2)*xn + 2*(ab+cd)
-
-        #    print(p1, p2, p_vec, v1, v2, v_vec, a2, b2, c2, d2, ab, cd, r2, xn, fxn, fdashxn, 2*(b2+d2)*xn, 2*(ab+cd))
-
-        #    xn -= fxn/fdashxn
-
-        ## xn should now be an approximation to the required value
-
-        #if xn < 0 or xn > 1:
-
-        #    raise Exception(f"Xn cannot be {xn}")
-
-        #self.vel[0] *= xn
-        #self.vel[1] *= xn
-        #ball.vel[0] *= xn
-        #ball.vel[1] *= xn
-
-        #print("SCALING VELOCITIES BY", xn)
-
-
     def block_collision_check(self, block, delta):
+
+        '''
+        Handles collisions between balls and blocks, UNFINISHED.
+        '''
 
         # Manual method because self.collide_widget(ball) appeared to not work
 
@@ -180,6 +123,11 @@ class SimulationBall(Widget):
 
     def update_before_collision(self, delta):
 
+        '''
+        Performs any updates required before collision detection applied,
+        notably (and as of now only) accelerations.
+        '''
+
         self.vel[1] += SimulationBall.GRAVITY * delta
 
     def update_after_collision(self, delta):
@@ -189,6 +137,11 @@ class SimulationBall(Widget):
 
 class SimulationBlock(Widget):
 
+    '''
+    Modelled as a smooth rectangle, this class represents an
+    immovable (and non-momentum-conserving) surface.
+    '''
+
     # Properties
 
     x_pos = NumericProperty(0)
@@ -197,15 +150,22 @@ class SimulationBlock(Widget):
     x_size = NumericProperty(150)
     y_size = NumericProperty(50)
     size = ReferenceListProperty(x_size, y_size)
-    theta = NumericProperty(0)
+    theta = NumericProperty(0) # Angle from positive x-axis, between 0 and 2 Pi
 
     # Methods
 
-    def calculate_radius(self, phi):
+    def calculate_radius(self, phi) -> float: # Phi used to avoid confusion with theta
+
+        '''
+        Calculates the effective radius at a given angle from the positive
+        x-axis, phi.
+        '''
 
         phi -= self.theta # Account for rotated blocks
 
         # Mathematical formula for "radius" of 1x1 square
+        # Simply written as max(sec(theta), csc(theta))
+        # 0.5 works in terms of radius rather than diameter
 
         if sin(phi) == 0:
 
@@ -230,17 +190,26 @@ class SimulationBlock(Widget):
 
 class SimulationManager(Widget):
 
+    '''
+    The core class of the simulation, this acts as the window
+    and parent of all the other objects.
+    '''
+
     # Properties
 
     balls = ListProperty()
     blocks = ListProperty()
-    initialised = BooleanProperty(False)
 
     # Methods
 
     def initialise(self, balls=None, blocks=None):
 
-        print(balls, blocks)
+        '''
+        Add lists of balls and blocks as provided, in format 
+        (object, pos_x, pos_y, vel_x, vel_y).
+        '''
+
+        print(balls, blocks) # Debug print
 
         if balls is not None:
 
@@ -258,30 +227,24 @@ class SimulationManager(Widget):
                 block[0].pos = block[1:]
                 self.add_widget(block[0])
                 self.blocks.append(block[0])
-        
-        self.initialised = True
 
     def update(self, delta):
 
-        # Only update when initialised
-
-        if not self.initialised: return
+        '''
+        Runs through every object, updating it as required.
+        Also triggers objects to check collisions.
+        Ran every frame.
+        '''
 
         # Three stage update - handle gravity, collisions, then finally move
+
+        # Stage 1
 
         for ball in self.balls:
 
             ball.update_before_collision(delta)
 
-        '''for ball in self.balls:
-            
-            for obj in self.balls + self.blocks:
-
-                # Working around ListProperty's shallow copies
-
-                if id(obj) != id(ball):
-
-                    ball.collision_check(obj, delta)'''
+        # Stage 2
         
         ball_pairs = [{a, b} for a in self.balls for b in self.balls]
 
@@ -294,6 +257,8 @@ class SimulationManager(Widget):
                 balls = list(balls)
                 if len(balls) == 2:
                     balls[0].collision_check(balls[1], delta)
+
+        # Stage 3
         
         for ball in self.balls:
 
@@ -302,6 +267,10 @@ class SimulationManager(Widget):
 # Applications
 
 class SimulationApp(App):
+
+    '''
+    Functions as the wrapper for the SimulationManager.
+    '''
 
     def build(self):
 
@@ -312,55 +281,23 @@ class SimulationApp(App):
         if hasattr(self, "balls") and hasattr(self, "blocks"):
 
             self.window.initialise(self.balls, self.blocks)
-            delattr(self, "balls")
-            delattr(self, "blocks")
 
         Clock.schedule_interval(self.window.update, 1/60)
 
         return self.window
 
     def initialise(self, balls=None, blocks=None):
+
+        '''
+        Sets the initial state of the simulation.
+        '''
         
         self.balls = balls
         self.blocks = blocks
 
-
 # Main
 
 if __name__ == "__main__":
-
-    # with open("unit_tests.txt", "r") as tests:
-
-    #     lines = tests.readlines()
-
-    #     current_test = ""
-    #     test_no = ""
-
-    #     while True:
-
-    #         line = lines.pop(0)
-
-    #         if line[0] == "%":
-                
-    #             if current_test != "":
-
-    #                 print(f"TEST NUMBER {test_no}")
-
-    #                 sim = SimulationApp()
-
-    #                 exec(current_test)
-
-    #                 sim.run()
-
-    #                 current_test = ""
-
-    #             if line.strip()[1:] == "END": break
-
-    #             test_no = line.strip()[1:]
-            
-    #         else:
-
-    #             current_test += line
 
     sim = SimulationApp()
 

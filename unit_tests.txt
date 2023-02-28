@@ -1,8 +1,0 @@
-%1
-sim.window.initialise(
-        balls=((SimulationBall(), 400, 300, 100, 0),  \
-        (SimulationBall(), 700, 290, -100, 0)),  \
-        blocks=((SimulationBlock(), 500, 200), \
-        (SimulationBlock(), 500, 100)))
-print("initialising")
-%END
