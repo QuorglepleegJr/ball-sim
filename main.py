@@ -264,6 +264,10 @@ class SimulationManager(Widget):
 
             ball.update_after_collision(delta)
 
+    def on_touch_down(self, touch):
+
+        self.update(1/60)
+
 # Applications
 
 class SimulationApp(App):
@@ -284,12 +288,14 @@ class SimulationApp(App):
             init_blocks = [(SimulationBlock(), *b) for b in self.blocks]
 
             self.window.initialise(balls=init_balls, blocks=init_blocks)
+        
+        if not hasattr(self, "frame_advance") or not self.frame_advance:
 
-        Clock.schedule_interval(self.window.update, 1/60)
+            Clock.schedule_interval(self.window.update, 1/60)
 
         return self.window
 
-    def initialise(self, balls=None, blocks=None):
+    def initialise(self, balls=None, blocks=None, frame_advance=False):
 
         '''
         Sets the initial state of the simulation.
@@ -298,6 +304,8 @@ class SimulationApp(App):
         self.balls = balls
         self.blocks = blocks
 
+        self.frame_advance = frame_advance
+
 # Main
 
 if __name__ == "__main__":
@@ -305,10 +313,11 @@ if __name__ == "__main__":
     sim = SimulationApp()
 
     sim.initialise(
-        balls=((400, 300, 100, 0),  \
-        (700, 290, -100, 0)),  \
-        blocks=((500, 200), \
-        (500, 100)))
+        balls=((400, 300, 100, 0),
+        (700, 290, -100, 0)),
+        blocks=((500, 200),
+        (500, 100)),
+        frame_advance=True)
     
     sim.run()
     
