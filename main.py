@@ -11,7 +11,7 @@ from kivy.lang import Builder
 # Other Imports
 
 from sys import exit
-from math import sin, cos
+from math import sin, cos, sqrt
 
 # Widgets
 
@@ -25,6 +25,7 @@ class SimulationBall(Widget):
     # Class Constants
 
     GRAVITY = 0 #-500 - Debug removal for the time being
+    COLLISION_PRECISION = 5
 
     # Properties
 
@@ -70,9 +71,37 @@ class SimulationBall(Widget):
 
         if (v2-v1).length() != 0:
 
-            t = ((p1-p2).length()-self.radius-ball.radius)/(v2-v1).length()
+            t = None
 
-            if t >= 0 and t < 1:
+            v = v2-v1
+            p = p2-p1
+            r = self.radius + ball.radius
+
+            a = v.dot(v)
+            b = 2*(p.dot(v))
+            c = p.dot(p)-r*r
+
+            disc = b**2 - 4*a*c
+
+            print(a,b,c,disc)
+
+            if disc >= 0:
+
+                temp_sol = (b+sqrt(disc))/(2*a)
+                solution_1 = -temp_sol # Tends to lower floatin point error
+                solution_2 = c/solution_1 
+
+                print(a,b,c,disc,solution_1,solution_2)
+
+                if solution_1 >= 0 and solution_1 < 1:
+
+                    t = solution_1
+                
+                elif solution_2 >= 0 and solution_2 < 1:
+
+                    t = solution_2
+
+            if t is not None:
 
                 # Finding the vectors of the velocities component to positions
                 # At the instant of bouncing to ensure the right bit is scaled
@@ -86,13 +115,15 @@ class SimulationBall(Widget):
                 
                 # Perpendicular components unscaled
 
-                self_vel_parallel = v * (Vector(self.vel).dot(v)/v.dot(v))
-                ball_vel_parallel = v * (Vector(ball.vel).dot(v)/v.dot(v))
+                self_vel_parallel = Vector(v * \
+                        (Vector(self.vel).dot(v)/v.dot(v)))
+                ball_vel_parallel = Vector(v * \
+                        (Vector(ball.vel).dot(v)/v.dot(v)))
 
                 self_vel_perp = Vector(self.vel) - self_vel_parallel
                 ball_vel_perp = Vector(ball.vel) - ball_vel_parallel
 
-                print(v1, v2, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t) # Debug
+                print(v1, v2, p1, p2, v, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t) # Debug
 
                 # Move to position to touch
 
@@ -114,7 +145,12 @@ class SimulationBall(Widget):
 
         # Manual method because self.collide_widget(ball) appeared to not work
 
-        centers_vec = Vector(self.pos) + Vector(self.vel) * delta - Vector(block.pos)
+        centers_vec = Vector(self.pos) + Vector(self.vel) *\
+              delta - Vector(block.pos)
+
+        # New Idea for method - model ball as a point on graph origin block.pos
+        # with axes along rotation of block, then compute y and x in model
+        # and check if crossing boundaries
 
         if centers_vec.length() < self.radius + \
             block.calculate_radius(centers_vec.angle((1,0))):
@@ -209,8 +245,6 @@ class SimulationManager(Widget):
         (object, pos_x, pos_y, vel_x, vel_y).
         '''
 
-        print(balls, blocks) # Debug print
-
         if balls is not None:
 
             for ball in balls:
@@ -288,6 +322,9 @@ class SimulationApp(App):
             init_blocks = [(SimulationBlock(), *b) for b in self.blocks]
 
             self.window.initialise(balls=init_balls, blocks=init_blocks)
+
+            delattr(self, "balls")
+            delattr(self, "blocks")
         
         if not hasattr(self, "frame_advance") or not self.frame_advance:
 
@@ -313,11 +350,11 @@ if __name__ == "__main__":
     sim = SimulationApp()
 
     sim.initialise(
-        balls=((400, 300, 100, 0),
-        (700, 290, -100, 0)),
-        blocks=((500, 200),
-        (500, 100)),
-        frame_advance=True)
+        balls=((200, 500, 0, -100),
+               (500, 500, 0, -100)),
+        blocks=((200, 200),
+                (500, 200)),
+        frame_advance=False)
     
     sim.run()
     
