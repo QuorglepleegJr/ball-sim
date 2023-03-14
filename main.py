@@ -10,8 +10,7 @@ from kivy.lang import Builder
 
 # Other Imports
 
-from sys import exit
-from math import sin, cos, sqrt
+from math import sin, cos, sqrt, degrees
 
 # Widgets
 
@@ -44,16 +43,31 @@ class SimulationBall(Widget):
 
         '''
         Acts as a factory function of sorts, calling the relevant
+        collision detection method for all relevant objects.
+        '''
+
+        if isinstance(other, SimulationBall):
+
+            return self.ball_collision_check(other, delta)
+
+        elif isinstance(other, SimulationBlock):
+
+            return self.block_collision_check(other, delta)
+    
+    def handle_collision(self, other, t, delta):
+
+        '''
+        Acts as a factory function of sorts, calling the relevant
         collision handle method for all relevant objects.
         '''
 
         if isinstance(other, SimulationBall):
 
-            self.ball_collision_check(other, delta)
+            self.handle_ball_collision(other, t, delta)
 
         elif isinstance(other, SimulationBlock):
 
-            self.block_collision_check(other, delta)
+            self.handle_block_collision(other, t, delta)
     
     def ball_collision_check(self, ball, delta):
 
@@ -69,9 +83,9 @@ class SimulationBall(Widget):
         v1 = Vector(self.vel) * delta
         v2 = Vector(ball.vel) * delta
 
-        if (v2-v1).length() != 0:
+        t = None
 
-            t = None
+        if (v2-v1).length() != 0:
 
             v = v2-v1
             p = p2-p1
@@ -83,15 +97,11 @@ class SimulationBall(Widget):
 
             disc = b**2 - 4*a*c
 
-            print(a,b,c,disc)
-
             if disc >= 0:
 
                 temp_sol = (b+sqrt(disc))/(2*a)
-                solution_1 = -temp_sol # Tends to lower floatin point error
+                solution_1 = -temp_sol # Tends to lower floating point error
                 solution_2 = c/solution_1 
-
-                print(a,b,c,disc,solution_1,solution_2)
 
                 if solution_1 >= 0 and solution_1 < 1:
 
@@ -101,41 +111,48 @@ class SimulationBall(Widget):
 
                     t = solution_2
 
-            if t is not None:
+        return t
 
-                # Finding the vectors of the velocities component to positions
-                # At the instant of bouncing to ensure the right bit is scaled
+    def handle_ball_collision(self, ball, t, delta):
+            
+            p1 = Vector(self.pos)
+            p2 = Vector(ball.pos)
+            v1 = Vector(self.vel) * delta
+            v2 = Vector(ball.vel) * delta
 
-                v = (p2 + v2 * t) - (p1 + v1 * t)
+            # Finding the vectors of the velocities component to positions
+            # At the instant of bouncing to ensure the right bit is scaled
 
-                # Parallel components scaled by delta
+            v = (p2 + v2 * t) - (p1 + v1 * t)
 
-                v1_component_parallel = v * (v1.dot(v)/v.dot(v))
-                v2_component_parallel = v * (v2.dot(v)/v.dot(v))
-                
-                # Perpendicular components unscaled
+            # Parallel components scaled by delta
 
-                self_vel_parallel = Vector(v * \
-                        (Vector(self.vel).dot(v)/v.dot(v)))
-                ball_vel_parallel = Vector(v * \
-                        (Vector(ball.vel).dot(v)/v.dot(v)))
+            v1_component_parallel = v * (v1.dot(v)/v.dot(v))
+            v2_component_parallel = v * (v2.dot(v)/v.dot(v))
+            
+            # Perpendicular components unscaled
 
-                self_vel_perp = Vector(self.vel) - self_vel_parallel
-                ball_vel_perp = Vector(ball.vel) - ball_vel_parallel
+            self_vel_parallel = Vector(v * \
+                    (Vector(self.vel).dot(v)/v.dot(v)))
+            ball_vel_parallel = Vector(v * \
+                    (Vector(ball.vel).dot(v)/v.dot(v)))
 
-                print(v1, v2, p1, p2, v, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t) # Debug
+            self_vel_perp = Vector(self.vel) - self_vel_parallel
+            ball_vel_perp = Vector(ball.vel) - ball_vel_parallel
 
-                # Move to position to touch
+            print(v1, v2, p1, p2, v, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t) # Debug
 
-                self.pos[0] += v1_component_parallel[0] * t
-                self.pos[1] += v1_component_parallel[1] * t
-                ball.pos[0] += v2_component_parallel[0] * t
-                ball.pos[1] += v2_component_parallel[1] * t
+            # Move to position to touch
 
-                # Remove parallel components
+            self.pos[0] += v1_component_parallel[0] * t
+            self.pos[1] += v1_component_parallel[1] * t
+            ball.pos[0] += v2_component_parallel[0] * t
+            ball.pos[1] += v2_component_parallel[1] * t
 
-                self.vel = self_vel_perp
-                ball.vel = ball_vel_perp
+            # Remove parallel components
+
+            self.vel = self_vel_perp
+            ball.vel = ball_vel_perp
 
     def block_collision_check(self, block, delta):
 
@@ -145,17 +162,40 @@ class SimulationBall(Widget):
 
         # Manual method because self.collide_widget(ball) appeared to not work
 
-        centers_vec = Vector(self.pos) + Vector(self.vel) *\
-              delta - Vector(block.pos)
+        vel = Vector(self.vel) * delta
 
-        # New Idea for method - model ball as a point on graph origin block.pos
-        # with axes along rotation of block, then compute y and x in model
-        # and check if crossing boundaries
+        start_pos = Vector(self.pos) - Vector(block.pos)
+        end_pos = start_pos + vel
 
-        if centers_vec.length() < self.radius + \
-            block.calculate_radius(centers_vec.angle((1,0))):
+        x_axis_vec = Vector(1, 0).rotate(degrees(block.theta))
+        y_axis_vec = x_axis_vec.rotate(90)
 
-            print(f"{self} and {block} have collided!")
+        # Find the equivalent positions in the vector space with
+        # origin at center of block and axes parralel and perpendicular
+        # to the rotation of the block
+
+        aligned_start = Vector(start_pos.dot(x_axis_vec), \
+                               start_pos.dot(y_axis_vec))
+        aligned_end = Vector(end_pos.dot(x_axis_vec), \
+                             end_pos.dot(y_axis_vec))
+        aligned_vel = aligned_end-aligned_start
+
+        t1 = aligned_vel.x - (block.size[0]/2 - aligned_start.x)
+        t2 = aligned_vel.y - (block.size[1]/2 - aligned_start.y)
+
+        if t1 < 1 and t1 > t2 and t1 >= 0:
+
+            return t1
+        
+        elif t2 < 1 and t2 > t1 and t2 >= 0:
+
+            return t2
+        
+        return None
+    
+    def handle_block_collision(self, block, t, delta):
+
+        print("Colliding at", t)
 
     def update_before_collision(self, delta):
 
@@ -270,7 +310,8 @@ class SimulationManager(Widget):
         Ran every frame.
         '''
 
-        # Three stage update - handle gravity, collisions, then finally move
+        # Four stage update - handle gravity, obtain collisions, 
+        # handle collisions in appropriate order, then finally move
 
         # Stage 1
 
@@ -279,24 +320,60 @@ class SimulationManager(Widget):
             ball.update_before_collision(delta)
 
         # Stage 2
-        
-        ball_pairs = [{a, b} for a in self.balls for b in self.balls]
 
-        while len(ball_pairs) > 0:
+        collisions = self.get_all_collisions(delta)
 
-            balls = ball_pairs.pop()
+        while len(collisions) > 0:
 
-            if balls not in ball_pairs:
+            print(collisions)
+
+            collisions[0][0].handle_collision(collisions[0][1], \
+                collisions[0][2], delta)
             
-                balls = list(balls)
-                if len(balls) == 2:
-                    balls[0].collision_check(balls[1], delta)
+            collisions = self.get_all_collisions(delta)
 
         # Stage 3
         
         for ball in self.balls:
 
             ball.update_after_collision(delta)
+
+    def get_all_collisions(self, delta):
+
+        collisions = []
+        
+        all_pairs = [{a, b} for a in self.balls for b in self.balls+self.blocks]
+
+        while len(all_pairs) > 0:
+
+            pair = all_pairs.pop()
+
+            pair = list(pair)
+
+            if pair not in all_pairs and len(pair) == 2:
+                    
+                collision = pair[0].collision_check(pair[1], delta)
+
+                if collision is not None:
+
+                    if len(collisions) == 0:
+
+                        collisions.append((pair[0], \
+                                pair[1], collision))
+
+                    else:
+
+                        for index, collide in enumerate(collisions):
+
+                            if collide[2] > collision:
+
+                                collisions = collisions[:index] + [(pair[0], \
+                                    pair[1], collision)] + collisions[index:]
+                                
+                                break
+        
+        return collisions
+
 
     def on_touch_down(self, touch):
 
