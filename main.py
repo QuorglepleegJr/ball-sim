@@ -10,7 +10,7 @@ from kivy.lang import Builder
 
 # Other Imports
 
-from math import sin, cos, sqrt, degrees
+from math import sin, cos, sqrt, degrees, floor
 
 # Widgets
 
@@ -31,6 +31,9 @@ class SimulationBall(Widget):
     x_pos = NumericProperty(0)
     y_pos = NumericProperty(0)
     pos = ReferenceListProperty(x_pos, y_pos)
+    adjust_x = NumericProperty(0)
+    adjust_y = NumericProperty(0)
+    adjustments = ReferenceListProperty(adjust_x, adjust_y)
     x_vel = NumericProperty(0)
     y_vel = NumericProperty(0)
     vel = ReferenceListProperty(x_vel, y_vel)
@@ -103,7 +106,9 @@ class SimulationBall(Widget):
 
                 temp_sol = (b+sqrt(disc))/(2*a)
                 solution_1 = -temp_sol # Tends to lower floating point error
-                solution_2 = c/solution_1 
+                solution_2 = 0
+                if solution_1 != 0:
+                    solution_2 = c/solution_1 
 
                 if solution_1 >= 0 and solution_1 < 1:
 
@@ -177,7 +182,7 @@ class SimulationBall(Widget):
         y_axis_vec = x_axis_vec.rotate(90)
 
         # Find the equivalent positions in the vector space with
-        # origin at center of block and axes parralel and perpendicular
+        # origin at center of block and axes parallel and perpendicular
         # to the rotation of the block
 
         aligned_start = Vector(start_pos.dot(x_axis_vec), \
@@ -189,15 +194,24 @@ class SimulationBall(Widget):
         t1 = 1
         t2 = 1
 
-        if aligned_vel.x != 0:
+        # a ^ b < 0 returns whether signs are opposite via bitwise xor
+        # Flooring casts to int whilst preserving sign
 
-            t1 = (self.radius+block.size[0]/2 - aligned_start.x)/aligned_vel.x
+        if aligned_vel.x != 0 and \
+            floor(aligned_start.x) ^ floor(aligned_vel.x) < 0:
+
+            t1 = (abs(aligned_start.x) - (self.radius+block.size[0]/2))\
+                / abs(aligned_vel.x)
+            
+        print(abs(aligned_start.x), (self.radius + block.size[0]/2), abs(aligned_vel.x), self.radius, block.size[0])
         
-        if aligned_vel.y != 0:
+        if aligned_vel.y != 0 and \
+            floor(aligned_start.y) ^ floor(aligned_vel.y) < 0:
 
-            t2 = (self.radius+block.size[1]/2 - aligned_start.y)/aligned_vel.y
+            t2 = (abs(aligned_start.y) - (self.radius+block.size[1]/2))\
+                / abs(aligned_vel.y)
 
-        print(t1, t2, x_axis_vec, y_axis_vec, start_pos, end_pos, vel, aligned_start, aligned_end, aligned_vel)
+        #print(t1, t2, x_axis_vec, y_axis_vec, start_pos, end_pos, vel, aligned_start, aligned_end, aligned_vel)
 
         valid = [t for t in (t1, t2) if t < 1 and t >= 0]
 
@@ -214,7 +228,6 @@ class SimulationBall(Widget):
         '''
 
         print("Colliding at", t)
-        self.vel = Vector(100000, 0)
 
         vel = Vector(self.vel) * delta
 
@@ -223,6 +236,37 @@ class SimulationBall(Widget):
 
         x_axis_vec = Vector(1, 0).rotate(degrees(block.theta))
         y_axis_vec = x_axis_vec.rotate(90)
+
+        aligned_start = Vector(start_pos.dot(x_axis_vec), \
+            start_pos.dot(y_axis_vec))
+        aligned_end = Vector(end_pos.dot(x_axis_vec), \
+            end_pos.dot(y_axis_vec))
+        aligned_vel = aligned_end - aligned_start
+
+        required_index = 0 # Stores whether x or y should be modified, x=0, y=1
+        
+        if aligned_vel.x != 0 and \
+            floor(aligned_start.x) ^ floor(aligned_vel.x) < 0:
+
+            if t == (abs(aligned_start.x) - (self.radius+block.size[0]/2))\
+                / abs(aligned_vel.x):
+
+                required_index = 1 # Passing via x, so y axis
+        
+        axis = [x_axis_vec, y_axis_vec][required_index]
+
+        perpendicular = (Vector(self.vel).dot(axis)\
+            / axis.dot(axis)) * axis
+        unscaled_parallel = Vector(self.vel) - perpendicular
+        scaled_parallel = unscaled_parallel * delta
+
+        print(axis, self.vel, scaled_parallel, unscaled_parallel, perpendicular)
+
+        self.adjustments = scaled_parallel * t * 2
+
+        self.vel = perpendicular - unscaled_parallel
+
+        print(t, x_axis_vec, y_axis_vec, start_pos, end_pos)
 
     def update_before_collision(self, delta):
 
@@ -235,8 +279,15 @@ class SimulationBall(Widget):
 
     def update_after_collision(self, delta):
 
-        self.pos[0] += self.vel[0] * delta
-        self.pos[1] += self.vel[1] * delta
+        '''
+        Performs updates such as applying velocity and position adjustments
+        after all the calculations to modify them have been completed.
+        '''
+
+        self.pos[0] += self.vel[0] * delta + self.adjustments[0]
+        self.pos[1] += self.vel[1] * delta + self.adjustments[1]
+
+        self.adjustments = [0,0]
 
 class SimulationBlock(Widget):
 
@@ -259,8 +310,12 @@ class SimulationBlock(Widget):
 
     def collision_check(self, other, delta):
 
-        return other.collision_check(self, delta)
+        if isinstance(other, SimulationBall):
 
+            other.collision_check(self, delta)
+
+        raise ValueError("Must collide with ball")
+    
     def handle_collision(self, other, t, delta):
 
         if isinstance(other, SimulationBall):
@@ -378,7 +433,9 @@ class SimulationManager(Widget):
 
                     collisions.pop(index)
 
-            collisions += self.get_all_collisions(delta, current[0], current[1])
+            collisions += self.get_all_collisions(delta, \
+                *[b for b in [current[0], current[1]] \
+                if isinstance(b, SimulationBall)])
 
         # Stage 3
         
@@ -481,11 +538,18 @@ if __name__ == "__main__":
 
     sim = SimulationApp()
 
+    # sim.initialise(
+    #     balls=((200, 300, 0, -600),
+    #            (500, 300, -600, -3600)),
+    #     blocks=((200, 200),
+    #             (500, 200),
+    #             (200, 500),
+    #             (500, 500)),
+    #     frame_advance=True)
+
     sim.initialise(
-        balls=((200, 300, 0, -660),
-               (500, 300, 0, -660)),
-        blocks=((200, 200),
-                (500, 200)),
+        balls=((200,300,600,0),),
+        blocks=((350,300),),
         frame_advance=True)
     
     sim.run()

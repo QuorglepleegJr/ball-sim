@@ -1,14 +1,13 @@
 FIXES:
 
-- Fix potential issue occuring upon colliding with multiple objects on a frame
-    - Done by checking for collision first then handling in order of which would
-        be collided with first, then recalculating after each collision
+NONE
 
 SCENARIOS TO TEST:
 
 - Basic: Two balls heading dead on
 - Basic: Two balls heading diagonally on
 - Basic: Two balls heading slightly obliquely
+- Basic: Ball and block at angle
 - Basic: Two blocks overlapped collided with
 
 - Moderate: Three balls colliding in a line
