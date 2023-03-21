@@ -24,7 +24,7 @@ class SimulationBall(Widget):
 
     # Class Constants
 
-    GRAVITY = 0 #-500 - Debug removal for the time being
+    GRAVITY = -500 #- Debug removal for the time being
     COLLISION_PRECISION = 5
 
     # Properties
@@ -83,15 +83,20 @@ class SimulationBall(Widget):
 
             disc = b**2 - 4*a*c
 
-            print(a,b,c,disc)
+            #print(a,b,c,disc)
 
             if disc >= 0:
 
                 temp_sol = (b+sqrt(disc))/(2*a)
                 solution_1 = -temp_sol # Tends to lower floatin point error
-                solution_2 = c/solution_1 
+                
+                solution_2 = 1
+                
+                if solution_1 != 0:
+                    
+                    solution_2 = c/solution_1 # Prevent DivZero
 
-                print(a,b,c,disc,solution_1,solution_2)
+                #print(a,b,c,disc,solution_1,solution_2)
 
                 if solution_1 >= 0 and solution_1 < 1:
 
@@ -123,7 +128,7 @@ class SimulationBall(Widget):
                 self_vel_perp = Vector(self.vel) - self_vel_parallel
                 ball_vel_perp = Vector(ball.vel) - ball_vel_parallel
 
-                print(v1, v2, p1, p2, v, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t) # Debug
+                #print(v1, v2, p1, p2, v, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t) # Debug
 
                 # Move to position to touch
 
@@ -133,6 +138,14 @@ class SimulationBall(Widget):
                 ball.pos[1] += v2_component_parallel[1] * t
 
                 # Remove parallel components
+
+                if round(self_vel_perp[0]) == -4:
+
+                    print(v1, v2, p1, p2, v, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t, self, ball)
+                
+                if round(ball_vel_perp[0]) == -4:
+
+                    print(v1, v2, p1, p2, v, v1_component_parallel, self_vel_perp, v2_component_parallel, ball_vel_perp, t, self, ball)
 
                 self.vel = self_vel_perp
                 ball.vel = ball_vel_perp
@@ -292,6 +305,8 @@ class SimulationManager(Widget):
                 if len(balls) == 2:
                     balls[0].collision_check(balls[1], delta)
 
+        print(*[(ball.vel, ball.pos) for ball in self.balls])
+
         # Stage 3
         
         for ball in self.balls:
@@ -338,6 +353,14 @@ class SimulationApp(App):
         Sets the initial state of the simulation.
         '''
         
+        if balls is None:
+
+            balls = []
+        
+        if blocks is None:
+
+            blocks = []
+
         self.balls = balls
         self.blocks = blocks
 
@@ -350,11 +373,13 @@ if __name__ == "__main__":
     sim = SimulationApp()
 
     sim.initialise(
-        balls=((200, 500, 0, -100),
-               (500, 500, 0, -100)),
-        blocks=((200, 200),
-                (500, 200)),
-        frame_advance=False)
+balls=((100, 400, 100, 100),
+        (300, 400, -100, 100),
+        (300, 600, -100, -100),
+        (100, 600, 100, -100)
+        ),
+frame_advance=True
+        )
     
     sim.run()
     

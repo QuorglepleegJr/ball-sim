@@ -1,14 +1,106 @@
-FIXES:
-
-- Fix potential issue occuring upon colliding with multiple objects on a frame
-    - Done by checking for collision first then handling in order of which would
-        be collided with first, then recalculating after each collision
-
 SCENARIOS TO TEST:
 
-- Basic: Two balls hedaing dead on
+- Basic: Two balls heading dead on
+
+balls=((200, 300, 100, 0),
+       (500, 300, -100, 0),
+       ),
+frame_advance=False
+
+PASSED x2
+
+OR:
+
+balls=((300, 200, 0, 100),
+       (300, 500, 0, -100),
+       ),
+frame_advance=False
+
+PASSED, PASSED*
+
 - Basic: Two balls heading diagonally on
+
+balls=((200, 300, 100, 100),
+       (500, 300, -100, 100),
+       ),
+frame_advance=False
+
+PASSED x2
+
+OR:
+
+balls=((300, 200, 30, 100),
+       (300, 500, 30, -100),
+       ),
+frame_advance=False
+
+PASSED, PASSED*
+
 - Basic: Two balls heading slightly obliquely
 
-- Moderate: Three balls colliding in a line
-- Moderate: Two blocks angled at 45 collided with at same time
+balls=((200, 325, 100, 0),
+       (500, 300, -100, 0),
+       ),
+frame_advance=False
+
+PASSED, PASSED*
+
+OR:
+
+balls=((300, 200, 0, 100),
+       (305, 500, 0, -100),
+       ),
+frame_advance=False
+
+PASSED x2
+
+- Basic: All previous with gravity
+
+- Basic: Two balls, both moving in same direction
+
+balls=((100, 300, 200, 0),
+        (300, 300, 100, 0),
+        ),
+frame_advance=False
+
+PASSED*
+
+(* means appears to fail but actually works as intended,
+in this case, the balls appear to stop but when the collision
+would be handled properly that would cease being a problem)
+
+- Moderate: Three balls colliding in line ( + gravity)
+
+balls=((50, 400, 100, 0),
+        (550, 400, -100, 0),
+        (300, 200, 0, 100)
+        ,)
+frame_advance=False
+
+PASSED x2
+
+- Moderate: Three balls colliding at angles
+
+balls=((100, 400, 100, 0),
+        (500, 400, -100, 0),
+        (300, 200, 0, 100)
+        ,)
+frame_advance=False
+
+PASSED
+
+- Advanced: Four balls coming in from corners (+ gravity)
+
+balls=((100, 100, 100, 100),
+        (300, 100, -100, 100),
+        (300, 300, -100, -100),
+        (100, 300, 100, -100)
+        ),
+frame_advance=False
+
+PASSED, FAILED (balls occasionally hang in midair)
+
+REQUIRED FIXES:
+
+- Check conditions to reproduce 4 balls having hanging in midair,
+    floating point error involved
