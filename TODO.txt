@@ -1,0 +1,14 @@
+FIXES:
+
+NONE
+
+SCENARIOS TO TEST:
+
+- Basic: Two balls heading dead on
+- Basic: Two balls heading diagonally on
+- Basic: Two balls heading slightly obliquely
+- Basic: Ball and block at angle
+- Basic: Two blocks overlapped collided with
+
+- Moderate: Three balls colliding in a line
+- Moderate: Two blocks angled at 45 collided with at same time
