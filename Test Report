@@ -1,0 +1,21 @@
+Testing report:
+
+Tested multiple angles of simple 2 ball collisions, non-obliquely. All of these passed as expected, albeit with seemingly odd behaviour
+if both were moving in the same direction but still collided, where the slower ball completely stopped. However, upon reviewing the intent of the code,
+this is the expected behaviour, and would be corrected upon the completetion of the full collisions, rather than simply preventing balls passing through
+each other.
+
+Tested multiple angles of oblique collision between 2 balls, all functioned as expected.
+
+Performed all of the previous tests, but with added gravity, and everything appeared to go as expected.
+
+Tested 3 balls colliding completely both non-obliquely and obliquely, both with and without gravity, again everything appeared fine.
+
+Tested 4 balls colliding in a square both with and without gravity, some odd behaviour found. Observed on one instance of the test two of the balls
+stop in midair - after conducting further looks, the cause of the problem appears to be floating point error in calculations of the velocity and position,
+possibly related to rotating. As of now, no easy solution presents itself, however the best cause of action would be to analyse where the error is arising and
+use less error-prone methods.
+
+Summary:
+
+The program appears to work as intended, except for a mild case of floating point error that is currently unfixable.
