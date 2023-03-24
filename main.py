@@ -198,7 +198,8 @@ class SimulationBall(Widget):
         # Flooring casts to int whilst preserving sign
 
         if aligned_vel.x != 0 and \
-            floor(aligned_start.x) ^ floor(aligned_vel.x) < 0:
+            floor(aligned_start.x) ^ floor(aligned_vel.x) < 0 and \
+            abs(aligned_start.y) < self.radius + block.size[1]/2:
 
             t1 = (abs(aligned_start.x) - (self.radius+block.size[0]/2))\
                 / abs(aligned_vel.x)
@@ -206,7 +207,8 @@ class SimulationBall(Widget):
         print(abs(aligned_start.x), (self.radius + block.size[0]/2), abs(aligned_vel.x), self.radius, block.size[0])
         
         if aligned_vel.y != 0 and \
-            floor(aligned_start.y) ^ floor(aligned_vel.y) < 0:
+            floor(aligned_start.y) ^ floor(aligned_vel.y) < 0 and \
+            abs(aligned_start.x) < self.radius + block.size[0]/2:
 
             t2 = (abs(aligned_start.y) - (self.radius+block.size[1]/2))\
                 / abs(aligned_vel.y)
@@ -243,7 +245,7 @@ class SimulationBall(Widget):
             end_pos.dot(y_axis_vec))
         aligned_vel = aligned_end - aligned_start
 
-        required_index = 0 # Stores whether x or y should be modified, x=0, y=1
+        required_indeces = [] # Stores whether x or y should be modified, x=0, y=1
         
         if aligned_vel.x != 0 and \
             floor(aligned_start.x) ^ floor(aligned_vel.x) < 0:
@@ -251,22 +253,32 @@ class SimulationBall(Widget):
             if t == (abs(aligned_start.x) - (self.radius+block.size[0]/2))\
                 / abs(aligned_vel.x):
 
-                required_index = 1 # Passing via x, so y axis
+                required_indeces.append(1) # Passing via x, so y axis
         
-        axis = [x_axis_vec, y_axis_vec][required_index]
+        if aligned_vel.y != 0 and \
+            floor(aligned_start.y) ^ floor(aligned_vel.y) < 0:
 
-        perpendicular = (Vector(self.vel).dot(axis)\
-            / axis.dot(axis)) * axis
-        unscaled_parallel = Vector(self.vel) - perpendicular
-        scaled_parallel = unscaled_parallel * delta
+            if t == (abs(aligned_start.y) - (self.radius+block.size[1]/2))\
+                / abs(aligned_vel.y):
 
-        print(axis, self.vel, scaled_parallel, unscaled_parallel, perpendicular)
+                required_indeces.append(0) # Passing via y, so x axis
+        
+        for required_index in required_indeces:
 
-        self.adjustments = scaled_parallel * t * 2
+            axis = [x_axis_vec, y_axis_vec][required_index]
 
-        self.vel = perpendicular - unscaled_parallel
+            perpendicular = (Vector(self.vel).dot(axis)\
+                / axis.dot(axis)) * axis
+            unscaled_parallel = Vector(self.vel) - perpendicular
+            scaled_parallel = unscaled_parallel * delta
 
-        print(t, x_axis_vec, y_axis_vec, start_pos, end_pos)
+            print(axis, self.vel, scaled_parallel, unscaled_parallel, perpendicular)
+
+            self.adjustments = scaled_parallel * t * 2
+
+            self.vel = perpendicular - unscaled_parallel
+
+            print(t, x_axis_vec, y_axis_vec, start_pos, end_pos)
 
     def update_before_collision(self, delta):
 
@@ -304,7 +316,8 @@ class SimulationBlock(Widget):
     x_size = NumericProperty(150)
     y_size = NumericProperty(50)
     size = ReferenceListProperty(x_size, y_size)
-    theta = NumericProperty(0) # Angle from positive x-axis, between 0 and 2 Pi
+    theta = NumericProperty(0) # Angle from pos. x-axis, between 0 and 2 Pi
+    # Angles currently proving tricky, leaving out for now
 
     # Methods
 
@@ -367,12 +380,15 @@ class SimulationManager(Widget):
 
     # Properties
 
-    balls = ListProperty()
-    blocks = ListProperty()
+    balls = ListProperty([])
+    blocks = ListProperty([])
+    frame_advance = BooleanProperty(False)
+    paused = BooleanProperty(True)
+
 
     # Methods
 
-    def initialise(self, balls=None, blocks=None):
+    def initialise(self, balls=None, blocks=None, frame_advance=False):
 
         '''
         Add lists of balls and blocks as provided, in format 
@@ -392,9 +408,16 @@ class SimulationManager(Widget):
 
             for block in blocks:
 
-                block[0].pos = block[1:]
+                block[0].pos = block[1:3]
+                #block[0].theta = block[3]
                 self.add_widget(block[0])
                 self.blocks.append(block[0])
+        
+        self.frame_advance = frame_advance
+
+        if not self.frame_advance:
+
+            Clock.schedule_interval(self.update, 1/60)
 
     def update(self, delta):
 
@@ -403,6 +426,10 @@ class SimulationManager(Widget):
         Also triggers objects to check collisions.
         Ran every frame.
         '''
+
+        if self.paused and not self.frame_advance: 
+            
+            return # Only update when unpaused
 
         # Four stage update - handle gravity, obtain collisions, 
         # handle collisions in appropriate order, then finally move
@@ -489,9 +516,11 @@ class SimulationManager(Widget):
         return collisions
 
 
-    def on_touch_down(self, touch):
+    def on_touch_down(self, _touch):
 
-        self.update(1/60)
+        if self.frame_advance: self.update(1/60)
+
+        else: self.paused = not self.paused
 
 # Applications
 
@@ -501,23 +530,23 @@ class SimulationApp(App):
     Functions as the wrapper for the SimulationManager.
     '''
 
+    def __init__(self):
+
+        super().__init__()
+
+        self.initialised = False
+
     def build(self):
 
         self.window = SimulationManager()
 
-        if hasattr(self, "balls") and hasattr(self, "blocks"):
+        if self.initialised:
 
             init_balls = [(SimulationBall(), *b) for b in self.balls]
             init_blocks = [(SimulationBlock(), *b) for b in self.blocks]
 
-            self.window.initialise(balls=init_balls, blocks=init_blocks)
-
-            delattr(self, "balls")
-            delattr(self, "blocks")
-        
-        if not hasattr(self, "frame_advance") or not self.frame_advance:
-
-            Clock.schedule_interval(self.window.update, 1/60)
+            self.window.initialise(balls=init_balls, blocks=init_blocks, \
+                                   frame_advance=self.frame_advance)
 
         return self.window
 
@@ -532,25 +561,22 @@ class SimulationApp(App):
 
         self.frame_advance = frame_advance
 
+        self.initialised = True
+
 # Main
 
 if __name__ == "__main__":
 
     sim = SimulationApp()
 
-    # sim.initialise(
-    #     balls=((200, 300, 0, -600),
-    #            (500, 300, -600, -3600)),
-    #     blocks=((200, 200),
-    #             (500, 200),
-    #             (200, 500),
-    #             (500, 500)),
-    #     frame_advance=True)
-
     sim.initialise(
-        balls=((200,300,600,0),),
-        blocks=((350,300),),
-        frame_advance=True)
+        balls=((200, 300, 0, -100),
+               (500, 300, -100, -600)),
+        blocks=((200, 200, 90),
+                (500, 200, 90),
+                (200, 500, 90),
+                (500, 500, 90)),
+        frame_advance=False)
     
     sim.run()
     
